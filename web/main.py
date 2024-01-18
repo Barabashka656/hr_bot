@@ -1,44 +1,37 @@
-import os
-
-import aiohttp_jinja2
-import jinja2
-from dotenv import load_dotenv, find_dotenv
-from aiohttp import web
+import asyncio
 
 from bot.handlers.hr.dao import TableAssistantDAO
 from bot.handlers.hr.schemas import TableAssistant
 from bot.utils.database import async_session_maker
+import os
+from flask import Flask, render_template
+from dotenv import load_dotenv, find_dotenv
 
+# Load environment variables
 load_dotenv(find_dotenv())
 
+app = Flask(__name__)
 
-env = jinja2.Environment(
-    loader=jinja2.FileSystemLoader(os.path.join('web', 'templates')),
-    trim_blocks=True,
-    lstrip_blocks=True,
-    keep_trailing_newline=True
-)
+# Assuming the TableAssistant model and TableAssistantDAO are similar to your aiohttp version
+# You need to adapt these parts to work with Flask-SQLAlchemy
 
 
-@aiohttp_jinja2.template('get_sys_prompts.html')
-async def get_prompts(request):
+async def run_db():
     async with async_session_maker() as session:
         objects = await TableAssistantDAO.find_all(session=session)
-    return {"objects": objects}
+    return objects
 
 
-app = web.Application()
+@app.route('/')
+def get_prompts():
+    # Adapt to synchronous call
+    objects = asyncio.run(run_db())
+    return render_template('get_sys_prompts.html', objects=objects)
 
-app.add_routes([
-    web.get('/', get_prompts),
-    # web.get('/add_ingredient', add_ingredient_get),
-    # web.get('/add_meal', add_meal_get),
-    # web.get('/add_plate', add_plate_get),
-])
-
-aiohttp_jinja2.setup(app, loader=env.loader, context_processors=[aiohttp_jinja2.request_processor])
 
 if __name__ == '__main__':
-    # web.run_app(app, host='0.0.0.0')
-    web.run_app(app, host='localhost', port=7392)
+    # Uncomment one of these depending on your deployment setup
+    # app.run(host='0.0.0.0')
+    port = os.getenv('PORT')
+    app.run(host='0.0.0.0', port=port)
     pass
