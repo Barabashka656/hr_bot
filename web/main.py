@@ -11,34 +11,23 @@ load_dotenv(find_dotenv())
 app = Flask(__name__)
 
 
-# Helper function to run async database operations
-def get_table_assistants_sync():
-    async def run_db():
-        async with async_session_maker() as session:
-            objects = await TableAssistantDAO.find_all(session=session)
-        return objects
-    
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:  # If there's no running loop
-        return asyncio.run(run_db())
-    
-    if loop.is_running():
-        # Create a new event loop for async tasks when the current loop is running
-        return asyncio.run(run_db())
-    else:
-        # Run in the existing event loop if not running
-        return loop.run_until_complete(run_db())
+async def fetch_table_assistants():
+    async with async_session_maker() as session:
+        return await TableAssistantDAO.find_all(session=session)
+
+
+def run_async(coroutine):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    return loop.run_until_complete(coroutine)
 
 
 @app.route('/')
 def get_prompts():
-    objects = get_table_assistants_sync()
+    objects = run_async(fetch_table_assistants())
     return render_template('get_sys_prompts.html', objects=objects)
 
 
 if __name__ == '__main__':
-    # Uncomment one of these depending on your deployment setup
-    # app.run(host='0.0.0.0')
     port = os.getenv('PORT', 5000)  # Default to 5000 if PORT is not set
     app.run(host='0.0.0.0', port=port)
