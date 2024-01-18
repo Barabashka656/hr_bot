@@ -29,8 +29,6 @@ async def get_prompts(request):
 
 app = web.Application()
 
-app.router.add_static('/static/', path='/web/static', name='static')
-
 app.add_routes([
     web.get('/', get_prompts),
     # web.get('/add_ingredient', add_ingredient_get),
