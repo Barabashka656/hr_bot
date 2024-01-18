@@ -253,14 +253,15 @@ class OpenAIService:
     
 
     @staticmethod
-    async def end_interview(argumets: dict[int, bool]) -> str:
+    async def end_interview(argumets: str) -> str:
+        print(argumets)
         argumets = json.loads(argumets)
         if argumets.get('approve'):
             hr_answer = 'вы прошли'
         else:
             hr_answer = 'вы не прошли'
         
-        return hr_answer + f' собеседование, ваш оценка: ' + str(argumets.get('mark'))
+        return hr_answer + f' собеседование, ваша оценка: ' + str(argumets.get('mark'))
     
     @classmethod
     async def _retrieve_run(cls, run, thread_id):
@@ -273,17 +274,20 @@ class OpenAIService:
             
             if run.status == "requires_action":
                 print(run.required_action)
-                hr_answer = await cls.end_interview(run.required_action.submit_tool_outputs.tool_calls[0].function.arguments[0])
+                hr_answer = await cls.end_interview(run.required_action.submit_tool_outputs.tool_calls[0].function.arguments)
+                print(hr_answer)
+                print(2)
                 required_action = await openai_client.beta.threads.runs.submit_tool_outputs(
                     thread_id=thread_id,
                     run_id=run.id,
                     tool_outputs=[
                         {
                             "tool_call_id": run.required_action.submit_tool_outputs.tool_calls[0].id,
-                            "output": hr_answer
+                            "output": 'диалог закончен'
                         }
                     ]
                 )
+                print(1)
                 return hr_answer
     
     @classmethod
@@ -306,7 +310,7 @@ class OpenAIService:
 
         answer = await cls._retrieve_run(run, thread_id)
         if answer:
-            return answer
+            return answer, thread_id
         response = await cls._get_response(thread_id)
         message: ThreadMessage = response.data[0]
         return message.content[0].text.value, thread_id
