@@ -85,7 +85,7 @@ class UserService:
                     )
                 )
             else:
-                table_assistant.sys_prompt+=f'\{prompt}'
+                table_assistant.sys_prompt += f'\n\n{prompt}'
 
             return await session.commit()
         
@@ -195,7 +195,6 @@ class OpenAIService:
                         model="gpt-4-1106-preview",
                         tools=cls.hr_function
             )
-            assistant
             print(assistant.id)
             table_assistant.assistant_id = assistant.id
             print(table_assistant)
@@ -257,9 +256,9 @@ class OpenAIService:
         print(argumets)
         argumets = json.loads(argumets)
         if argumets.get('approve'):
-            hr_answer = 'вы прошли'
+            hr_answer = 'Вы прошли'
         else:
-            hr_answer = 'вы не прошли'
+            hr_answer = 'Вы не прошли'
         
         return hr_answer + f' собеседование, ваша оценка: ' + str(argumets.get('mark'))
     
@@ -297,7 +296,7 @@ class OpenAIService:
         assistant_id: str | None,
         user_input: str,
         user_id: int | None
-    ) -> tuple[str, str]:
+    ) -> tuple[str, str, bool]:
         if thread_id:
             run = await cls._submit_message(thread_id, user_input, assistant_id)
         else:
@@ -310,7 +309,8 @@ class OpenAIService:
 
         answer = await cls._retrieve_run(run, thread_id)
         if answer:
-            return answer, thread_id
+            return answer, thread_id, True
+        
         response = await cls._get_response(thread_id)
         message: ThreadMessage = response.data[0]
-        return message.content[0].text.value, thread_id
+        return message.content[0].text.value, thread_id, False
