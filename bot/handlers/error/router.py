@@ -10,6 +10,9 @@ router = Router()
 
 @dp.error(ExceptionTypeFilter(UserExistException), F.update.callback_query.as_("message"))
 async def handle_my_custom_exception(event: ErrorEvent, message: Message):
+    print(type(event.exception.message))
+    print(event.exception.message)
+    print(message.from_user.id)
     await message.answer(event.exception.message)
 
 

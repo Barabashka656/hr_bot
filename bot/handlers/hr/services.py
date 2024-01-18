@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 from io import BytesIO
+import json
 
 from aiogram import types
 from bot.handlers.hr.models import TableAssistantModel, TableModel
@@ -149,7 +150,7 @@ class OpenAIService:
                                 "расчитаная на основе предыдущих оценок"
                         },
                         "approve": {
-                            "type": "bool",
+                            "type": "boolean",
                             "description": "принимаешь ли ты как hr данного кандидата"
                         },
                     },
@@ -160,7 +161,8 @@ class OpenAIService:
                 },
                 "description": "окончательное решение hr менеджера  "\
                     "о приеме кандидата на работу, функция вызывается "\
-                    "только тогда, когда hr готов озвучить данное решение",
+                    "только тогда, когда hr готов озвучить данное решение " \
+                    "и только после того, как hr задаст несколько вопросов "
             }
         }
     ]
@@ -191,7 +193,7 @@ class OpenAIService:
                         name="Hr менеджер",
                         instructions=table_assistant.sys_prompt,
                         model="gpt-4-1106-preview",
-                        # tools=cls.hr_function
+                        tools=cls.hr_function
             )
             assistant
             print(assistant.id)
@@ -249,8 +251,19 @@ class OpenAIService:
         
         return thread.id, run
     
+
     @staticmethod
-    async def _retrieve_run(run, thread_id):
+    async def end_interview(argumets: dict[int, bool]) -> str:
+        argumets = json.loads(argumets)
+        if argumets.get('approve'):
+            hr_answer = 'вы прошли'
+        else:
+            hr_answer = 'вы не прошли'
+        
+        return hr_answer + f' собеседование, ваш оценка: ' + str(argumets.get('mark'))
+    
+    @classmethod
+    async def _retrieve_run(cls, run, thread_id):
         while run.status == "queued" or run.status == "in_progress":
             await asyncio.sleep(0.3)
             run = await openai_client.beta.threads.runs.retrieve(
@@ -258,18 +271,20 @@ class OpenAIService:
                 run_id=run.id,
             )
             
-            # if run.status == "requires_action":
-            #     await openai_client.beta.threads.runs.submit_tool_outputs(
-            #         thread_id=thread_id,
-            #         run_id=run.id,
-            #         tool_outputs=[
-            #             {
-            #                 "tool_call_id": run.required_action.submit_tool_outputs.tool_calls[0].id,
-            #                 "output": "Диалог удачно завершен"
-            #             }
-            #         ]
-            #     )
-            #     return await 
+            if run.status == "requires_action":
+                print(run.required_action)
+                hr_answer = await cls.end_interview(run.required_action.submit_tool_outputs.tool_calls[0].function.arguments[0])
+                required_action = await openai_client.beta.threads.runs.submit_tool_outputs(
+                    thread_id=thread_id,
+                    run_id=run.id,
+                    tool_outputs=[
+                        {
+                            "tool_call_id": run.required_action.submit_tool_outputs.tool_calls[0].id,
+                            "output": "Конец диалога"
+                        }
+                    ]
+                )
+                return hr_answer
     
     @classmethod
     async def get_assistant_response(
@@ -289,7 +304,9 @@ class OpenAIService:
                 user_id=user_id
             )
 
-        await cls._retrieve_run(run, thread_id)
+        answer = await cls._retrieve_run(run, thread_id)
+        if answer:
+            return answer
         response = await cls._get_response(thread_id)
         message: ThreadMessage = response.data[0]
         return message.content[0].text.value, thread_id

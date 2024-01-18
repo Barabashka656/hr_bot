@@ -43,9 +43,7 @@ class TableAssistantModel(Base):
 class ThreadModel(Base):
     __tablename__ = "threads"
  
-    # user_id: Mapped[int] = mapped_column(
-    #     BigInteger, index=True, primary_key=True
-    # )
+   
     thread_id: Mapped[str] = mapped_column(
         String, index=True, primary_key=True
     )
