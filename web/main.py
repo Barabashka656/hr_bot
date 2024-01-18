@@ -16,15 +16,14 @@ app = Flask(__name__)
 # You need to adapt these parts to work with Flask-SQLAlchemy
 
 
-async def run_db():
-    async with async_session_maker() as session:
-        objects = await TableAssistantDAO.find_all(session=session)
-    return objects
-
-
 @app.route('/')
 def get_prompts():
     # Adapt to synchronous call
+    async def run_db():
+        async with async_session_maker() as session:
+            objects = await TableAssistantDAO.find_all(session=session)
+        return objects
+    
     try:
         loop = asyncio.get_event_loop()
         objects = loop.run_until_complete(run_db())
