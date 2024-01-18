@@ -40,5 +40,5 @@ aiohttp_jinja2.setup(app, loader=env.loader, context_processors=[aiohttp_jinja2.
 
 if __name__ == '__main__':
     # web.run_app(app, host='0.0.0.0')
-    web.run_app(app, host='localhost', port=80)
-    
+    # web.run_app(app, host='localhost', port=80)
+    pass
