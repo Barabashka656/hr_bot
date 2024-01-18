@@ -25,7 +25,12 @@ async def run_db():
 @app.route('/')
 def get_prompts():
     # Adapt to synchronous call
-    objects = asyncio.run(run_db())
+    try:
+        loop = asyncio.get_event_loop()
+        objects = loop.run_until_complete(run_db())
+        
+    except Exception as x:
+        objects = asyncio.run(run_db())
     return render_template('get_sys_prompts.html', objects=objects)
 
 
