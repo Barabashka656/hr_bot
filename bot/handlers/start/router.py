@@ -1,4 +1,5 @@
 
+from bot.handlers.hr.services import UserService
 from bot.handlers.start.keyboards import tables_kb
 
 
@@ -14,4 +15,5 @@ async def start(message: types.Message):
     # await UserService.new_user(message.from_user.id)
     reply_text = "Добро пожаловать в бота HappyAI\n" +\
                  "выберите свой стол"
-    await message.answer(text=reply_text, reply_markup=tables_kb(12))
+    table_count = await UserService.table_count()
+    await message.answer(text=reply_text, reply_markup=tables_kb(table_count))

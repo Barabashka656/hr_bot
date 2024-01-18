@@ -7,7 +7,7 @@ from alembic import context
 
 from bot.data.config import DATABASE_URL
 from bot.utils.database import Base
-from bot.handlers.hr.models import TableModel, ThreadModel, TableAssistantModel
+from bot.handlers.hr.models import TableModel, ThreadModel, TableAssistantModel, UtilModel
 
 
 # this is the Alembic Config object, which provides

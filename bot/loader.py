@@ -8,6 +8,6 @@ from openai import AsyncOpenAI
 bot = Bot(token=TELEGRAM_API_TOKEN)
 dp = Dispatcher()
 
-client = AsyncOpenAI(
+openai_client = AsyncOpenAI(
     api_key=OPEN_AI_API_KEY,
 )

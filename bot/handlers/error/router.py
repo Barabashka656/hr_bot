@@ -5,6 +5,7 @@ from aiogram.types import ErrorEvent, Message
 from bot.handlers.error.exceptions import UserExistException
 from bot.loader import dp
 
+
 router = Router()
 
 @dp.error(ExceptionTypeFilter(UserExistException), F.update.callback_query.as_("message"))

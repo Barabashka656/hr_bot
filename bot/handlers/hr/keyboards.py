@@ -13,8 +13,8 @@ class TableCallback(CallbackData, prefix='table'):
 class HRCallback(CallbackData, prefix='hr'):
     create: bool
 
-start_kb = InlineKeyboardMarkup(
-    keyboard=[
+create_hr_kb = InlineKeyboardMarkup(
+    inline_keyboard=[
         [
             InlineKeyboardButton(
                 text="Создать HR", 
