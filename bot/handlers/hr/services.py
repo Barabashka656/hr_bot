@@ -280,7 +280,7 @@ class OpenAIService:
                     tool_outputs=[
                         {
                             "tool_call_id": run.required_action.submit_tool_outputs.tool_calls[0].id,
-                            "output": "Конец диалога"
+                            "output": hr_answer
                         }
                     ]
                 )
