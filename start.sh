@@ -1,4 +1,10 @@
 #!/bin/bash
-alembic upgrade head
+# Install Poetry
+curl -sSL https://install.python-poetry.org | python3 -
+
+# Add Poetry to PATH
+export PATH="$HOME/.local/bin:$PATH"
+
 poetry install
+poetry run alembic upgrade head
 poetry run python main.py
