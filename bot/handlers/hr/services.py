@@ -18,7 +18,6 @@ class UserService:
     @staticmethod
     async def new_user(user_id: int, table_number: int, username: str):
         async with async_session_maker() as session:
-            print('new_one')
             db_user = await TableDAO.add(
                 session,
                 obj_in=Table(
@@ -27,7 +26,6 @@ class UserService:
                     username=username
                 )
             )
-            print(db_user)
             await session.commit()
         return db_user
     
@@ -102,7 +100,6 @@ class UserService:
     @staticmethod
     async def new_thread(user_id: int, thread_id: str, created_at: datetime.datetime):
         async with async_session_maker() as session:
-            print('add2')
             await ThreadDAO.add(
                 session,
                 obj_in=ThreadSchema(
@@ -186,7 +183,6 @@ class OpenAIService:
             if table_assistant.assistant_id:
                 
                 reply_text = 'ваш стол уже создал hr бота'
-                print(reply_text)
                 return await callback.answer(text=reply_text)
 
             assistant = await openai_client.beta.assistants.create(
@@ -195,10 +191,7 @@ class OpenAIService:
                         model="gpt-4-1106-preview",
                         tools=cls.hr_function
             )
-            print(assistant.id)
             table_assistant.assistant_id = assistant.id
-            print(table_assistant)
-            print(table_assistant.assistant_id)
             await session.commit()
             return assistant.id
     
@@ -244,7 +237,6 @@ class OpenAIService:
     async def _create_thread_and_run(cls, user_input, assistant_id, user_id) -> tuple[str, Run]:
         
         thread: Thread = await openai_client.beta.threads.create()
-        print('add1')
         await UserService.new_thread(user_id, thread.id, thread.created_at)
         run = await cls._submit_message(thread.id, user_input, assistant_id)
         
@@ -253,7 +245,6 @@ class OpenAIService:
 
     @staticmethod
     async def end_interview(argumets: str) -> str:
-        print(argumets)
         argumets = json.loads(argumets)
         if argumets.get('approve'):
             hr_answer = 'Вы прошли'
@@ -272,10 +263,7 @@ class OpenAIService:
             )
             
             if run.status == "requires_action":
-                print(run.required_action)
                 hr_answer = await cls.end_interview(run.required_action.submit_tool_outputs.tool_calls[0].function.arguments)
-                print(hr_answer)
-                print(2)
                 required_action = await openai_client.beta.threads.runs.submit_tool_outputs(
                     thread_id=thread_id,
                     run_id=run.id,
@@ -286,7 +274,6 @@ class OpenAIService:
                         }
                     ]
                 )
-                print(1)
                 return hr_answer
     
     @classmethod
@@ -300,7 +287,6 @@ class OpenAIService:
         if thread_id:
             run = await cls._submit_message(thread_id, user_input, assistant_id)
         else:
-            print('add3')
             thread_id, run = await cls._create_thread_and_run(
                 user_input=user_input,
                 assistant_id=assistant_id,

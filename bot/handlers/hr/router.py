@@ -28,8 +28,6 @@ async def handle_interview(message: types.Message, state: FSMContext):
     reply_text = 'пожалуйста, подождите...'
     msg = await message.answer(reply_text)
     await state.set_state(HRState.gpt_dialogue)
-    # await bot.send_chat_action(message.chat.id, 'record_voice')
-    print(message.text, 'texttext')
     async with CustomSendAction(bot=bot, tg_id=message.from_user.id, state=state):
         if message.voice:
             result: io.BytesIO = await bot.download(message.voice)
@@ -140,9 +138,7 @@ async def create_hr(
     )
     assistant_id = await OpenAIService.create_assistant(callback)
     if not isinstance(assistant_id, str):
-        print('1234err')
         reply_text = 'ваш стол уже создал hr бота'
-        print(reply_text)
         return await callback.answer(text=reply_text)
     
     users = await UserService.get_users_at_table_by_userid(callback.from_user.id)
