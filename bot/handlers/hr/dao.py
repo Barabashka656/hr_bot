@@ -1,15 +1,12 @@
 from bot.dao.base import BaseDAO
-from bot.handlers.hr.models import TableAssistantModel, TableModel, ThreadModel, UtilModel
+from bot.handlers.hr.models import AssistantModel, UserModel, ThreadModel
 
 
-class TableDAO(BaseDAO):
-    model = TableModel
+class UserDAO(BaseDAO):
+    model = UserModel
 
-class TableAssistantDAO(BaseDAO):
-    model = TableAssistantModel
+class AssistantDAO(BaseDAO):
+    model = AssistantModel
     
 class ThreadDAO(BaseDAO):
     model = ThreadModel
-
-class UtilDAO(BaseDAO):
-    model = UtilModel

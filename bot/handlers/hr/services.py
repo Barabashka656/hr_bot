@@ -4,106 +4,54 @@ from io import BytesIO
 import json
 
 from aiogram import types
-from bot.handlers.hr.models import TableAssistantModel, TableModel
+from bot.handlers.hr.models import AssistantModel, UserModel
 
 from bot.loader import openai_client
-from bot.handlers.hr.dao import TableAssistantDAO, TableDAO, ThreadDAO, UtilDAO
-from bot.handlers.hr.schemas import Table, TableAssistant, ThreadSchema, UtilSchema
+from bot.handlers.hr.dao import AssistantDAO, UserDAO, ThreadDAO
+from bot.handlers.hr.schemas import User, Assistant, ThreadSchema
 from bot.utils.database import async_session_maker
 
 from openai.types.beta.threads import Run, ThreadMessage
 from openai.types.beta.thread import Thread
 
+
 class UserService:
     @staticmethod
-    async def new_user(user_id: int, table_number: int, username: str):
+    async def new_user(user_id: int, username: str):
         async with async_session_maker() as session:
-            db_user = await TableDAO.add(
+            user: User = await UserDAO.find_one_or_none(
                 session,
-                obj_in=Table(
-                    user_id=user_id,
-                    table_number=table_number,
-                    username=username
-                )
+                UserModel.user_id == user_id
             )
-            await session.commit()
-        return db_user
-    
-    @staticmethod
-    async def get_users_at_table_by_userid(user_id: int) -> list[int]: # TODO(??)
-        async with async_session_maker() as session:
-            table: Table = await TableDAO.find_one_or_none(
-                session,
-                TableModel.user_id == user_id
-            )
-            users_db: list[Table] = await TableDAO.find_all(
-                session,
-                TableModel.table_number == table.table_number
-            )
-            return [user.user_id for user in users_db]
-
-    @staticmethod
-    async def _get_table_num_by_userid(user_id: int) -> int | None:
-        async with async_session_maker() as session:
-            table: Table = await TableDAO.find_one_or_none(
-                session,
-                TableModel.user_id == user_id
-            )
-            if not table:
-                return None
-            return table.table_number
-        
-    @classmethod
-    async def _get_assistantid_by_userid(cls, user_id: int) -> str | None:
-        async with async_session_maker() as session:
-            table_number = await cls._get_table_num_by_userid(user_id)
-            if not table_number:
-                return None
-
-            table_assistant: TableAssistant = await TableAssistantDAO.find_one_or_none(
-                session,
-                TableAssistantModel.table_number == table_number
-            )
-            return table_assistant.assistant_id
-        
-    @classmethod
-    async def add_prompt_to_db(cls, user_id: int, prompt: str):
-        async with async_session_maker() as session:
-            table_number = await cls._get_table_num_by_userid(user_id)
-            table_assistant: TableAssistant = await TableAssistantDAO.find_one_or_none(
-                session,
-                TableAssistantModel.table_number == table_number
-            )
-            if not table_assistant:
-                await TableAssistantDAO.add(
+            if not user:
+                await UserDAO.add(
                     session,
-                    obj_in=TableAssistant(
-                        table_number=table_number,
-                        sys_prompt=prompt
+                    obj_in=User(
+                        user_id=user_id,
+                        username=username
                     )
                 )
-            else:
-                table_assistant.sys_prompt += f'\n\n{prompt}'
+                await session.commit()
 
-            return await session.commit()
-        
+
     @classmethod
-    async def get_table_assistant_by_user_id(cls, user_id: int):
+    async def get_assistant_id(cls, user_id: int) -> str | None:
         async with async_session_maker() as session:
-            table_number = await cls._get_table_num_by_userid(user_id)
-            table_assistant: TableAssistant = await TableAssistantDAO.find_one_or_none(
+
+            assistant: Assistant = await AssistantDAO.find_one_or_none(
                 session,
-                TableAssistantModel.table_number == table_number
+                AssistantModel.user_id == user_id
             )
-            return table_assistant
+            if assistant:
+                return assistant.assistant_id
         
     @staticmethod
-    async def new_thread(user_id: int, thread_id: str, created_at: datetime.datetime):
+    async def new_thread(assistant_id: str, thread_id: str, created_at: datetime.datetime):
         async with async_session_maker() as session:
             await ThreadDAO.add(
                 session,
                 obj_in=ThreadSchema(
-                    user_id=user_id,
+                    assistant_id=assistant_id,
                     thread_id=thread_id,
                     created_at=created_at
                 )
@@ -111,26 +59,21 @@ class UserService:
             return await session.commit()
         
     @staticmethod
-    async def table_count() -> int:
+    async def check_assist_count(user_id: int) -> int:
         async with async_session_maker() as session:
-            util: UtilSchema = await UtilDAO.find_one_or_none(
+            return await AssistantDAO.count(
                 session,
+                AssistantModel.user_id == user_id
             )
-            return util.tables_count
+        
+    @staticmethod
+    async def get_assistants(user_id: int) -> list[Assistant]:
+        async with async_session_maker() as session:
+            return await AssistantDAO.find_all(
+                session,
+                AssistantModel.user_id == user_id
+            )
 
-    @classmethod   
-    async def set_table_count_default(cls, count: int):
-        async with async_session_maker() as session:
-            table_count = await cls.table_count()
-            if table_count:
-                return
-            await UtilDAO.add(
-                session,
-                obj_in=UtilSchema(
-                    tables_count=count
-                )
-            )
-            return await session.commit()
 
 class OpenAIService:
     hr_function = [
@@ -165,33 +108,29 @@ class OpenAIService:
     ]
 
     @classmethod
-    async def create_assistant(cls, callback: types.CallbackQuery) -> str:
+    async def create_assistant(cls, user_id: int, prompt) -> str:
         'returns assistant id'
-    
+
+        prompt+="\n\nОтвечай и задавай короткие вопросы, так как мы будем озвучивать их через (TTS). "\
+               "За раз задавай только 1 вопрос. Ни в коем случае не задавай 2 вопроса подряд в 1 сообщении. "\
+               "Все цифры и числа пиши только текстом. Если хочешь написать 1/10, пиши ОДИН ИЗ ДЕСЯТИ. "\
+               "В ответах не должно быть ни одного символа цифры"
+
         async with async_session_maker() as session:
-            # table_assistant: TableAssistant = await \
-            #     UserService.get_table_assistant_by_user_id(callback.from_user.id)
-
-            table_number = await UserService._get_table_num_by_userid(callback.from_user.id)
-            table_assistant: TableAssistant = await TableAssistantDAO.find_one_or_none(
-                session,
-                TableAssistantModel.table_number == table_number
-            )
-            if not table_assistant.sys_prompt:
-                reply_text = 'у вас не задан промпт'
-                return await callback.answer(text=reply_text)
-            if table_assistant.assistant_id:
-                
-                reply_text = 'ваш стол уже создал hr бота'
-                return await callback.answer(text=reply_text)
-
             assistant = await openai_client.beta.assistants.create(
                         name="Hr менеджер",
-                        instructions=table_assistant.sys_prompt,
+                        instructions=prompt,
                         model="gpt-4-1106-preview",
                         tools=cls.hr_function
             )
-            table_assistant.assistant_id = assistant.id
+            await AssistantDAO.add(
+                session,
+                obj_in=Assistant(
+                    assistant_id=assistant.id,
+                    user_id=user_id,
+                    sys_prompt=prompt
+                )
+            )
             await session.commit()
             return assistant.id
     
@@ -234,10 +173,10 @@ class OpenAIService:
             openai_client.beta.threads.messages.list(thread_id=thread_id)
 
     @classmethod
-    async def _create_thread_and_run(cls, user_input, assistant_id, user_id) -> tuple[str, Run]:
+    async def _create_thread_and_run(cls, user_input, assistant_id) -> tuple[str, Run]:
         
         thread: Thread = await openai_client.beta.threads.create()
-        await UserService.new_thread(user_id, thread.id, thread.created_at)
+        await UserService.new_thread(assistant_id, thread.id, thread.created_at)
         run = await cls._submit_message(thread.id, user_input, assistant_id)
         
         return thread.id, run
@@ -281,16 +220,14 @@ class OpenAIService:
         cls, 
         thread_id: str | None, 
         assistant_id: str | None,
-        user_input: str,
-        user_id: int | None
+        user_input: str
     ) -> tuple[str, str, bool]:
         if thread_id:
             run = await cls._submit_message(thread_id, user_input, assistant_id)
         else:
             thread_id, run = await cls._create_thread_and_run(
                 user_input=user_input,
-                assistant_id=assistant_id,
-                user_id=user_id
+                assistant_id=assistant_id
             )
 
         answer = await cls._retrieve_run(run, thread_id)

@@ -1,7 +1,5 @@
-
+from bot.data.config import MAX_ASSISTANTS_PER_USER
 from bot.handlers.hr.services import UserService
-from bot.handlers.start.keyboards import tables_kb
-
 
 from aiogram import F, Router
 from aiogram import types
@@ -12,7 +10,11 @@ router = Router()
 
 @router.message(CommandStart())
 async def start(message: types.Message):
-    # await UserService.new_user(message.from_user.id)
-    reply_text = "Добро пожаловать в HappyAISuperCrazyMegaAIEnabledAssistantGPTBeast!\n\nВыберите свой стол"
-    table_count = await UserService.table_count()
-    await message.answer(text=reply_text, reply_markup=tables_kb(table_count))
+    reply_text = "Добро пожаловать в HappyAISuperCrazyMegaAIEnabledAssistantGPTBeast!\n" \
+                "создайте ассистента /create_assistant\n" \
+                f"нельзя создать больше {MAX_ASSISTANTS_PER_USER} ассистентов"
+    await message.answer(text=reply_text)
+    await UserService.new_user(
+        user_id=message.from_user.id,
+        username=message.from_user.username
+    )

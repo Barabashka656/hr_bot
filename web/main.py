@@ -1,5 +1,5 @@
 import asyncio
-from bot.handlers.hr.dao import TableAssistantDAO
+from bot.handlers.hr.dao import AssistantDAO
 from bot.utils.database import async_session_maker
 import os
 from flask import Flask, render_template
@@ -13,7 +13,7 @@ app = Flask(__name__)
 
 async def fetch_table_assistants():
     async with async_session_maker() as session:
-        return await TableAssistantDAO.find_all(session=session)
+        return await AssistantDAO.find_all(session=session)
 
 
 def run_async(coroutine):
