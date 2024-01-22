@@ -96,21 +96,20 @@ async def handle_interview(message: types.Message, state: FSMContext):
         else:
             users_answer = message.text
         
-        
-        reply_text = 'пожалуйста, подождите...'
-        msg = await message.answer(reply_text)
-        # print(await state.get_state(), 'state1')
-        # await state.set_state(HRState.gpt_dialogue)
-        # print(await state.get_state(), 'state2')
-        if users_answer == '/start_interview':
-            thread_id = None
-            users_answer = 'Добрый вечер, я кандидат на вакансию. Хочу начать интервью'
-
-        response, thread_id, is_finished = await OpenAIService.get_assistant_response(
-            thread_id=thread_id,
-            assistant_id=assistant_id,
-            user_input=users_answer
-        )
+            reply_text = 'пожалуйста, подождите...'
+            msg = await message.answer(reply_text)
+            # print(await state.get_state(), 'state1')
+            # await state.set_state(HRState.gpt_dialogue)
+            # print(await state.get_state(), 'state2')
+            if users_answer == '/start_interview':
+                thread_id = None
+                users_answer = 'Добрый вечер, я кандидат на вакансию. Хочу начать интервью'
+    
+            response, thread_id, is_finished = await OpenAIService.get_assistant_response(
+                thread_id=thread_id,
+                assistant_id=assistant_id,
+                user_input=users_answer
+            )
     await state.set_state(HRState.gpt_dialogue)
 
     if is_finished:
