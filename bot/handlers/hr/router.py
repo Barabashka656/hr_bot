@@ -89,6 +89,7 @@ async def handle_interview(message: types.Message, state: FSMContext):
         await state.clear()
         return await message.answer(text=reply_text)
     
+    await state.set_state(HRState.gpt_dialogue)
     async with CustomSendAction(bot=bot, tg_id=message.from_user.id, state=state):
         if message.voice:
             result: io.BytesIO = await bot.download(message.voice)
