@@ -15,4 +15,9 @@ DB_NAME = os.getenv('DB_NAME')
 
 DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
+REDIS_HOST = os.getenv('REDIS_HOST')
+REDIS_PORT = int(os.getenv('REDIS_PORT'))
+
+REDIS_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}/0'
+
 MAX_ASSISTANTS_PER_USER = 3

@@ -1,9 +1,9 @@
 import io
 
 from aiogram.filters import Command
+from openai import RateLimitError
 from bot.data.config import MAX_ASSISTANTS_PER_USER
 from bot.handlers.hr.keyboards import ChooseHRCallback, HRCallback, assistants_kb
-
 
 from aiogram import F, Router
 from aiogram import types
@@ -12,7 +12,7 @@ from aiogram.fsm.context import FSMContext
 
 from bot.handlers.hr.keyboards import create_hr_kb
 from bot.handlers.hr.schemas import Assistant
-from bot.handlers.hr.services import OpenAIService, UserService
+from bot.handlers.hr.services import OpenAIService, RedisService, UserService
 from bot.handlers.hr.states import HRState
 from bot.loader import bot
 from bot.handlers.hr.utils import CustomSendAction
@@ -20,6 +20,24 @@ from bot.handlers.hr.utils import CustomSendAction
 router = Router()
 
 
+# @router.message(F.text)
+# async def test_rate_limit(message: types.Message):
+#     response = message.text
+#     try:
+#         bytes_voice = await OpenAIService.text_to_speech(response)
+#     except RateLimitError as e:
+#         print(e)
+#         await RedisService.add_tts_to_queue(message.from_user.id, response)
+#         return await message.answer('подождите, пожалуйста')
+    
+#     await message.answer_voice(
+#         types.BufferedInputFile(
+#             bytes_voice,
+#             filename="voice.ogg"
+#         )
+#     )
+
+                 
 @router.message(Command("start_interview"))
 @router.message(HRState.gpt_dialogue)
 async def handle_interview(message: types.Message, state: FSMContext):
@@ -63,8 +81,14 @@ async def handle_interview(message: types.Message, state: FSMContext):
                      "для того, чтобы создать нового ассистента, нажмите /create_assistant\n"\
                      "для того, чтобы создать нового ассистента, нажмите /choose_assistant"
         return await message.answer(text=reply_text)
+    
+    try:
+        bytes_voice = await OpenAIService.text_to_speech(response)
+    except RateLimitError as e:
+        print(e)
+        await RedisService.add_tts_to_queue(message.from_user.id, response)
+        return await msg.edit_text('подождите, пожалуйста')
         
-    bytes_voice = await OpenAIService.text_to_speech(response)
     await msg.delete()
     await message.answer_voice(
         types.BufferedInputFile(

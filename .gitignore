@@ -2,5 +2,4 @@ __pycache__
 .env
 chatgpt
 venv/
-test.py
-test.md
+/test

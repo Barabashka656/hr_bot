@@ -2,8 +2,11 @@ import asyncio
 import datetime
 from io import BytesIO
 import json
-
+from bot.loader import bot
 from aiogram import types
+import redis.asyncio as redis
+from openai import RateLimitError
+from bot.data.config import REDIS_URL
 from bot.handlers.hr.models import AssistantModel, UserModel
 
 from bot.loader import openai_client
@@ -237,3 +240,59 @@ class OpenAIService:
         response = await cls._get_response(thread_id)
         message: ThreadMessage = response.data[0]
         return message.content[0].text.value, thread_id, False
+
+
+class RedisService:
+    redis_client: redis.Redis | None
+    QUEUE_KEY = 'queue'
+    redis_client = redis.from_url(REDIS_URL)
+
+    @classmethod
+    # async def create_task(cls):
+    #     cls.create_client()
+    #     await asyncio.create_task(cls.process_queue())
+
+    @classmethod
+    def create_client(cls):
+        # pool = redis.ConnectionPool.from_url(REDIS_URL)
+        # cls.redis_client: redis.Redis = redis.Redis.from_pool(pool)
+        cls.redis_client = redis.from_url(REDIS_URL)
+        # cls.redis_client = redis.Redis(host='localhost', port=6379, db=0)
+        # cls.redis_client: aioredis.Redis = await aioredis.from_url(REDIS_URL)
+    
+    @classmethod
+    async def process_queue(cls):
+        while True:
+            # await cls.redis_client.execute_command('LPOP', cls.QUEUE_KEY)
+            task = await cls.redis_client.lindex(cls.QUEUE_KEY, 0)
+            print(task, "task")
+            if task:
+                print(1)
+                task_data = task = json.loads(task.decode('utf-8'))
+                user_id = task_data.get('user_id')
+                input_text = task_data.get('input_text')
+                try:
+                    bytes_voice = await OpenAIService.text_to_speech(input_text)
+                    # await bot.send_message(chat_id=user_id, text=input_text)
+                    await bot.send_voice(
+                        chat_id=user_id,
+                        voice = types.BufferedInputFile(
+                            bytes_voice,
+                            filename="voice.ogg"
+                        )
+                    )
+                    task = await cls.redis_client.lpop(cls.QUEUE_KEY)
+                except RateLimitError as e:
+                    print(e)
+                    print('error2')
+                    await asyncio.sleep(10)  # Пауза перед следующей попыткой
+            else:
+                print(2)
+                await asyncio.sleep(3)
+
+    @classmethod
+    async def add_tts_to_queue(cls, user_id: int, input_text: str):
+        task = json.dumps({'user_id': user_id, 'input_text': input_text})
+        await cls.redis_client.rpush(cls.QUEUE_KEY, task)
+        task = await cls.redis_client.lindex(cls.QUEUE_KEY, 0)
+        print(task, 'added')

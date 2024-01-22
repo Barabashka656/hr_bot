@@ -13,6 +13,8 @@ sqlalchemy = "^2.0.25"
 openai = "^1.8.0"
 alembic = "^1.13.1"
 asyncpg = "^0.29.0"
+redis = "^5.0.1"
+flask = "^3.0.1"
 
 
 [build-system]
