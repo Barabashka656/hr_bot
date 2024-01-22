@@ -96,45 +96,45 @@ async def handle_interview(message: types.Message, state: FSMContext):
         else:
             users_answer = message.text
         
-            reply_text = 'пожалуйста, подождите...'
-            msg = await message.answer(reply_text)
-            # print(await state.get_state(), 'state1')
-            # await state.set_state(HRState.gpt_dialogue)
-            # print(await state.get_state(), 'state2')
-            if users_answer == '/start_interview':
-                thread_id = None
-                users_answer = 'Добрый вечер, я кандидат на вакансию. Хочу начать интервью'
-    
-            response, thread_id, is_finished = await OpenAIService.get_assistant_response(
-                thread_id=thread_id,
-                assistant_id=assistant_id,
-                user_input=users_answer
-            )
-    await state.set_state(HRState.gpt_dialogue)
+        reply_text = 'пожалуйста, подождите...'
+        msg = await message.answer(reply_text)
+        # print(await state.get_state(), 'state1')
+        # await state.set_state(HRState.gpt_dialogue)
+        # print(await state.get_state(), 'state2')
+        if users_answer == '/start_interview':
+            thread_id = None
+            users_answer = 'Добрый вечер, я кандидат на вакансию. Хочу начать интервью'
 
-    if is_finished:
-        await msg.delete()
-        await message.answer(response)
-        reply_text = "Если у Вас остались вопросы по интервью, задайте их. "\
-                     "Если Вы хотите начать интервью заново, нажмите /start_interview\n"\
-                     "для того, чтобы создать нового ассистента, нажмите /create_assistant\n"\
-                     "для того, чтобы создать нового ассистента, нажмите /choose_assistant"
-        return await message.answer(text=reply_text)
-    
-    try:
-        bytes_voice = await OpenAIService.text_to_speech(response)
-    except RateLimitError as e:
-        print(e)
-        await RedisService.add_tts_to_queue(message.from_user.id, response)
-        return await msg.edit_text('подождите, пожалуйста')
-        
-    await msg.delete()
-    await message.answer_voice(
-        types.BufferedInputFile(
-            bytes_voice,
-            filename="voice.ogg"
+        response, thread_id, is_finished = await OpenAIService.get_assistant_response(
+            thread_id=thread_id,
+            assistant_id=assistant_id,
+            user_input=users_answer
         )
-    )
+    
+        if is_finished:
+            await msg.delete()
+            await message.answer(response)
+            reply_text = "Если у Вас остались вопросы по интервью, задайте их. "\
+                         "Если Вы хотите начать интервью заново, нажмите /start_interview\n"\
+                         "для того, чтобы создать нового ассистента, нажмите /create_assistant\n"\
+                         "для того, чтобы создать нового ассистента, нажмите /choose_assistant"
+            return await message.answer(text=reply_text)
+        
+        try:
+            bytes_voice = await OpenAIService.text_to_speech(response)
+        except RateLimitError as e:
+            print(e)
+            await RedisService.add_tts_to_queue(message.from_user.id, response)
+            return await msg.edit_text('подождите, пожалуйста')
+            
+        await msg.delete()
+        await message.answer_voice(
+            types.BufferedInputFile(
+                bytes_voice,
+                filename="voice.ogg"
+            )
+        )
+        
     await state.update_data(thread_id=thread_id)
 
 
