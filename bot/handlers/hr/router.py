@@ -57,9 +57,13 @@ async def create_assistant(message: types.Message, state: FSMContext):
                  '2. Должность, на которую нанимаете\n'\
                  '3. Компанию и ее ценности\n'\
                  '4. На что обратить внимание\n'\
-                 'и любые другие Ваши идеи'
+                 'и любые другие Ваши идеи\n\n\n' \
+                 'Обратите внимание, что мы рекомендуем действовать по схеме выше, но не ограничиваем Вас. ' \
+                 'Вы можете писать или говорить все, что угодно, и уточнять любые детали. ' \
+                 'ИИ HR будет вести себя так, как Вы его натренируете этим промптом!'
     await message.answer(text=reply_text)
     await state.set_state(HRState.get_assistant_sys_prompt)
+
 
 @router.message(Command('choose_assistant'))
 async def choose_assistant(message: types.Message, state: FSMContext):
