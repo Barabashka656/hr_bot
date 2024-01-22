@@ -90,6 +90,9 @@ async def handle_interview(message: types.Message, state: FSMContext):
         return await message.answer(text=reply_text)
     
     await state.set_state(HRState.gpt_dialogue)
+
+    reply_text = 'пожалуйста, подождите...'
+    msg = await message.answer(reply_text)
     async with CustomSendAction(bot=bot, tg_id=message.from_user.id, state=state):
         if message.voice:
             result: io.BytesIO = await bot.download(message.voice)
@@ -97,8 +100,6 @@ async def handle_interview(message: types.Message, state: FSMContext):
         else:
             users_answer = message.text
         
-        reply_text = 'пожалуйста, подождите...'
-        msg = await message.answer(reply_text)
         # print(await state.get_state(), 'state1')
         # await state.set_state(HRState.gpt_dialogue)
         # print(await state.get_state(), 'state2')
@@ -137,7 +138,6 @@ async def handle_interview(message: types.Message, state: FSMContext):
         )
         
     await state.update_data(thread_id=thread_id)
-
 
 
 @router.message(HRState.get_assistant_sys_prompt)
