@@ -3,7 +3,7 @@ import io
 from aiogram.filters import Command
 from openai import RateLimitError
 from bot.data.config import MAX_ASSISTANTS_PER_USER
-from bot.handlers.hr.keyboards import ChooseHRCallback, HRCallback, assistants_kb
+from bot.handlers.hr.keyboards import HRCallback, assistants_kb
 
 from aiogram import F, Router
 from aiogram import types
@@ -44,7 +44,8 @@ async def handle_interview(message: types.Message, state: FSMContext):
     fsm_data = await state.get_data()
     thread_id = fsm_data.get('thread_id')
     assistant_id = fsm_data.get('assistant_id')
-        
+    print(assistant_id, 'assistant_id')
+    print(fsm_data)
     if not assistant_id:
         reply_text = "выберите ассистента /choose_assistant\n"\
                      "или создайте нового /create_assistant"
@@ -132,6 +133,7 @@ async def choose_assistant(message: types.Message, state: FSMContext):
     reply_text = 'выберите ассистента'
     await message.answer(text=reply_text, reply_markup=assistants_kb(assistants))
 
+
 @router.message(HRState.get_assistant_sys_prompt)
 async def get_prompt(message: types.Message, state: FSMContext):
     if message.voice:
@@ -151,19 +153,8 @@ async def get_prompt(message: types.Message, state: FSMContext):
     else:
         await state.update_data(prompt=users_answer)
 
-@router.callback_query(ChooseHRCallback.filter())
-async def choose_hr(
-        callback: types.CallbackQuery,
-        callback_data: ChooseHRCallback,
-        state: FSMContext
-):
-    await callback.answer()
-    await state.update_data(assistant_id=callback_data.assistant_id)
 
-    reply_text = 'HR выбран, нажмите\n/start_interview'
-    await callback.message.answer(text=reply_text)
-
-@router.callback_query(HRCallback.filter())
+@router.callback_query(HRCallback.filter(F.create == True))
 async def create_hr(
         callback: types.CallbackQuery,
         callback_data: HRCallback,
@@ -178,13 +169,27 @@ async def create_hr(
     if not prompt:
         reply_text = 'сначала задайте промпт'
         return await callback.answer(text=reply_text)
-    
+    print('1323')
     assistant_id = await OpenAIService.create_assistant(
         user_id=callback.from_user.id,
         prompt=prompt
     )
-    
+    print(assistant_id, '132')
     await state.update_data(assistant_id=assistant_id)
 
     reply_text = 'HR создан, нажмите\n/start_interview'
     await callback.message.answer(text=reply_text)
+
+@router.callback_query(HRCallback.filter(F.create == False))
+async def choose_hr(
+        callback: types.CallbackQuery,
+        callback_data: HRCallback,
+        state: FSMContext
+):
+    await callback.answer()
+    await state.update_data(assistant_id=callback_data.assistant_id)
+
+    reply_text = 'HR выбран, нажмите\n/start_interview'
+    await callback.message.answer(text=reply_text)
+
+

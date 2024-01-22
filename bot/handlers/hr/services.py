@@ -126,6 +126,7 @@ class OpenAIService:
                         model="gpt-4-1106-preview",
                         tools=cls.hr_function
             )
+            print(assistant.id, 'id')
             await AssistantDAO.add(
                 session,
                 obj_in=Assistant(
@@ -265,7 +266,6 @@ class RedisService:
         while True:
             # await cls.redis_client.execute_command('LPOP', cls.QUEUE_KEY)
             task = await cls.redis_client.lindex(cls.QUEUE_KEY, 0)
-            print(task, "task")
             if task:
                 print(1)
                 task_data = task = json.loads(task.decode('utf-8'))
@@ -287,7 +287,6 @@ class RedisService:
                     print('error2')
                     await asyncio.sleep(10)  # Пауза перед следующей попыткой
             else:
-                print(2)
                 await asyncio.sleep(3)
 
     @classmethod
