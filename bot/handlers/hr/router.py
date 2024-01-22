@@ -1,6 +1,6 @@
 import io
 
-from aiogram.filters import Command
+from aiogram.filters import Command, StateFilter
 from openai import RateLimitError
 from bot.data.config import MAX_ASSISTANTS_PER_USER
 from bot.handlers.hr.keyboards import HRCallback, assistants_kb
@@ -38,71 +38,13 @@ router = Router()
 #     )
 
                  
-@router.message(Command("start_interview"))
-@router.message(HRState.gpt_dialogue)
-async def handle_interview(message: types.Message, state: FSMContext):
-    fsm_data = await state.get_data()
-    thread_id = fsm_data.get('thread_id')
-    assistant_id = fsm_data.get('assistant_id')
-    print(assistant_id, 'assistant_id')
-    print(fsm_data)
-    if not assistant_id:
-        reply_text = "выберите ассистента /choose_assistant\n"\
-                     "или создайте нового /create_assistant"
-        await state.clear()
-        return await message.answer(text=reply_text)
-    
-    async with CustomSendAction(bot=bot, tg_id=message.from_user.id, state=state):
-        if message.voice:
-            result: io.BytesIO = await bot.download(message.voice)
-            users_answer = await OpenAIService.speech_to_text(result)
-        else:
-            users_answer = message.text
-        
-        
-        reply_text = 'пожалуйста, подождите...'
-        msg = await message.answer(reply_text)
-        await state.set_state(HRState.gpt_dialogue)
-        
-        if users_answer == '/start_interview':
-            thread_id = None
-            users_answer = 'Добрый вечер, я кандидат на вакансию. Хочу начать интервью'
 
-        response, thread_id, is_finished = await OpenAIService.get_assistant_response(
-            thread_id=thread_id,
-            assistant_id=assistant_id,
-            user_input=users_answer
-        )
-        
-    if is_finished:
-        await msg.delete()
-        await message.answer(response)
-        reply_text = "Если у Вас остались вопросы по интервью, задайте их. "\
-                     "Если Вы хотите начать интервью заново, нажмите /start_interview\n"\
-                     "для того, чтобы создать нового ассистента, нажмите /create_assistant\n"\
-                     "для того, чтобы создать нового ассистента, нажмите /choose_assistant"
-        return await message.answer(text=reply_text)
-    
-    try:
-        bytes_voice = await OpenAIService.text_to_speech(response)
-    except RateLimitError as e:
-        print(e)
-        await RedisService.add_tts_to_queue(message.from_user.id, response)
-        return await msg.edit_text('подождите, пожалуйста')
-        
-    await msg.delete()
-    await message.answer_voice(
-        types.BufferedInputFile(
-            bytes_voice,
-            filename="voice.ogg"
-        )
-    )
-    await state.update_data(thread_id=thread_id)
 
 
 @router.message(Command('create_assistant'))
 async def create_assistant(message: types.Message, state: FSMContext):
     # await message.edit_reply_markup(reply_markup=None)
+    await state.clear()
     assistants_count = await UserService.check_assist_count(message.from_user.id)
 
     if assistants_count >= MAX_ASSISTANTS_PER_USER:
@@ -134,8 +76,73 @@ async def choose_assistant(message: types.Message, state: FSMContext):
     await message.answer(text=reply_text, reply_markup=assistants_kb(assistants))
 
 
+@router.message(Command("start_interview"))
+@router.message(HRState.gpt_dialogue)
+async def handle_interview(message: types.Message, state: FSMContext):
+    fsm_data = await state.get_data()
+    thread_id = fsm_data.get('thread_id')
+    assistant_id = fsm_data.get('assistant_id')
+
+    if not assistant_id:
+        reply_text = "выберите ассистента /choose_assistant\n"\
+                     "или создайте нового /create_assistant"
+        await state.clear()
+        return await message.answer(text=reply_text)
+    
+    async with CustomSendAction(bot=bot, tg_id=message.from_user.id, state=state):
+        if message.voice:
+            result: io.BytesIO = await bot.download(message.voice)
+            users_answer = await OpenAIService.speech_to_text(result)
+        else:
+            users_answer = message.text
+        
+        
+        reply_text = 'пожалуйста, подождите...'
+        msg = await message.answer(reply_text)
+        # print(await state.get_state(), 'state1')
+        # await state.set_state(HRState.gpt_dialogue)
+        # print(await state.get_state(), 'state2')
+        if users_answer == '/start_interview':
+            thread_id = None
+            users_answer = 'Добрый вечер, я кандидат на вакансию. Хочу начать интервью'
+
+        response, thread_id, is_finished = await OpenAIService.get_assistant_response(
+            thread_id=thread_id,
+            assistant_id=assistant_id,
+            user_input=users_answer
+        )
+    await state.set_state(HRState.gpt_dialogue)
+
+    if is_finished:
+        await msg.delete()
+        await message.answer(response)
+        reply_text = "Если у Вас остались вопросы по интервью, задайте их. "\
+                     "Если Вы хотите начать интервью заново, нажмите /start_interview\n"\
+                     "для того, чтобы создать нового ассистента, нажмите /create_assistant\n"\
+                     "для того, чтобы создать нового ассистента, нажмите /choose_assistant"
+        return await message.answer(text=reply_text)
+    
+    try:
+        bytes_voice = await OpenAIService.text_to_speech(response)
+    except RateLimitError as e:
+        print(e)
+        await RedisService.add_tts_to_queue(message.from_user.id, response)
+        return await msg.edit_text('подождите, пожалуйста')
+        
+    await msg.delete()
+    await message.answer_voice(
+        types.BufferedInputFile(
+            bytes_voice,
+            filename="voice.ogg"
+        )
+    )
+    await state.update_data(thread_id=thread_id)
+
+
+
 @router.message(HRState.get_assistant_sys_prompt)
 async def get_prompt(message: types.Message, state: FSMContext):
+
     if message.voice:
         result: io.BytesIO = await bot.download(message.voice)
         users_answer = await OpenAIService.speech_to_text(result)
@@ -165,16 +172,16 @@ async def create_hr(
     
     fsm_data = await state.get_data()
     prompt = fsm_data.get('prompt')
-    print(prompt, '1')
+
     if not prompt:
         reply_text = 'сначала задайте промпт'
         return await callback.answer(text=reply_text)
-    print('1323')
+
     assistant_id = await OpenAIService.create_assistant(
         user_id=callback.from_user.id,
         prompt=prompt
     )
-    print(assistant_id, '132')
+
     await state.update_data(assistant_id=assistant_id)
 
     reply_text = 'HR создан, нажмите\n/start_interview'

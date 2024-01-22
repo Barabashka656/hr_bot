@@ -8,7 +8,6 @@ from bot.utils.router import setup_routers
 
 import asyncio
 
-
 async def main():
     setup_routers(dp)
     await set_commands(bot)
